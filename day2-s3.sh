@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
 
-REGION=$(aws configure get region)
+#REGION=$(aws configure get region)
+REGION="eu-north-1"
 BUCKET_NAME="aws-day2-s3-$RANDOM-$RANDOM"
 
 echo "Region: $REGION"
