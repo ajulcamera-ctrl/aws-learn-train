@@ -108,10 +108,10 @@ resource "aws_ecs_task_definition" "this" {
       name  = "app"
       image = "amazon/aws-cli"
 
+      entryPoint = ["sh", "-c"]
+
       command = [
-        "sh",
-        "-c",
-        "aws sts get-caller-identity && sleep 3600"
+        "aws sts get-caller-identity; tail -f /dev/null"
       ]
 
       logConfiguration = {
