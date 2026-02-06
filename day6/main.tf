@@ -139,3 +139,8 @@ resource "aws_ecs_service" "this" {
     assign_public_ip = true
   }
 }
+
+resource "aws_iam_role_policy_attachment" "ecs_exec_core" {
+  role       = aws_iam_role.ecs_task.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
