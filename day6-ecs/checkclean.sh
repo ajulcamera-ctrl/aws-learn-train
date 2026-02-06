@@ -2,8 +2,10 @@
 set -e
 
 echo "Checking ECS cluster..."
-CLUSTER=$(aws ecs describe-clusters --clusters day6-cluster --query 'clusters[0].status' --output text 2>/dev/null)
-[ "$CLUSTER" = "None" ] && echo "✅ Cluster gone" || echo "❌ Cluster still exists"
+
+CLUSTER=$(aws ecs describe-clusters --clusters day6-cluster --query 'clusters | length(@)' --output text 2>/dev/null)
+[ "$CLUSTER" = "0" ] && echo "✅ Cluster gone" || echo "❌ Cluster still exists"
+
 
 echo "Checking ECS task definitions..."
 TASKDEF=$(aws ecs list-task-definitions --family-prefix day6-task --query 'taskDefinitionArns' --output text)
