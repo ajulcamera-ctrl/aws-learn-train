@@ -1,0 +1,22 @@
+DAY 7 – Notes App on ECS
+
+# Build Docker image
+docker build -t day7-notes .
+
+# Create ECR repo
+aws ecr create-repository --repository-name day7-notes
+
+# Login to ECR
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+REGION=$(aws configure get region)
+
+aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
+
+# Tag image
+docker tag day7-notes:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/day7-notes:latest
+
+# Push image
+docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/day7-notes:latest
+
+# Image URI
+echo $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/day7-notes:latest
