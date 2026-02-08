@@ -1,0 +1,92 @@
+# ----------------------------
+# Day 7 – Notes App ECS + Docker
+# ----------------------------
+
+# 1️⃣ Create ECR repo
+aws ecr create-repository --repository-name day7-notes || true
+
+# 2️⃣ Login Docker to ECR
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+REGION=$(aws configure get region)
+aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
+
+# 3️⃣ Build Docker image
+docker build -t day7-notes .
+
+# 4️⃣ Tag image for ECR
+docker tag day7-notes:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/day7-notes:latest
+
+# 5️⃣ Push image to ECR
+docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/day7-notes:latest
+
+# 6️⃣ Terraform init & apply (initial deployment)
+cd ~/aws-learn-train/day7
+terraform init
+terraform apply -auto-approve
+
+# 7️⃣ Verify ECS cluster & task
+aws ecs list-clusters
+aws ecs list-tasks --cluster day7-cluster
+aws ecs describe-tasks --cluster day7-cluster --tasks <TASK_ARN>
+
+# 8️⃣ Execute command into container
+TASK=$(aws ecs list-tasks --cluster day7-cluster --desired-status RUNNING --query 'taskArns[0]' --output text)
+aws ecs execute-command \
+  --cluster day7-cluster \
+  --task "$TASK" \
+  --container app \
+  --interactive \
+  --command "/bin/sh"
+
+# 9️⃣ Python app fix (inside app.py)
+# Change: if name == "main": → if __name__ == "__main__":
+
+# 10️⃣ Rebuild and push fixed Docker image
+docker build -t day7-notes .
+docker tag day7-notes:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/day7-notes:latest
+docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/day7-notes:latest
+
+# 11️⃣ Force ECS service to pull new image
+aws ecs update-service \
+  --cluster day7-cluster \
+  --service day7 \
+  --force-new-deployment
+
+# 12️⃣ Wait ~60 seconds, then exec again
+TASK=$(aws ecs list-tasks --cluster day7-cluster --desired-status RUNNING --query 'taskArns[0]' --output text)
+aws ecs execute-command \
+  --cluster day7-cluster \
+  --task "$TASK" \
+  --container app \
+  --interactive \
+  --command "/bin/sh"
+
+# 13️⃣ Test the app inside container
+curl http://localhost:5000/health
+curl -X POST http://localhost:5000/notes -H "Content-Type: application/json" -d '{"note":"first ecs note"}'
+curl http://localhost:5000/notes
+
+# 14️⃣ Add curl to Dockerfile (optional debugging)
+# Dockerfile updated:
+# RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# 15️⃣ Rebuild & push with curl
+docker build -t day7-notes .
+docker tag day7-notes:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/day7-notes:latest
+docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/day7-notes:latest
+
+# 16️⃣ Force ECS service deployment again
+aws ecs update-service \
+  --cluster day7-cluster \
+  --service day7 \
+  --force-new-deployment
+
+# 17️⃣ Cleanup – Destroy Terraform
+terraform destroy -auto-approve
+
+# 18️⃣ Cleanup – Delete ECR repository
+aws ecr delete-repository --repository-name day7-notes --force
+
+# 19️⃣ Verification
+aws ecs list-clusters
+aws ecr describe-repositories
