@@ -50,7 +50,7 @@ resource "aws_ecs_task_definition" "app" {
 
   container_definitions = jsonencode([{
     name  = "app"
-    image = "<PUT YOUR ECR IMAGE URI HERE>"
+    image = "223597091881.dkr.ecr.eu-north-1.amazonaws.com/day7-notes:latest"
     essential = true
     portMappings = [{
       containerPort = 5000
@@ -65,7 +65,7 @@ resource "aws_ecs_task_definition" "app" {
     }
   }])
 
-  enable_execute_command = true
+  
 }
 
 # ECS Service
@@ -75,6 +75,7 @@ resource "aws_ecs_service" "svc" {
   task_definition = aws_ecs_task_definition.app.arn
   desired_count   = 1
   launch_type     = "FARGATE"
+  enable_execute_command = true
 
   network_configuration {
     assign_public_ip = true
