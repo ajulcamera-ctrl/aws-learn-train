@@ -36,7 +36,8 @@ done
 
 echo ""
 echo "==== VERIFYING ECR REPOSITORIES ===="
-REPOS=$(aws ecr describe-repositories --query "repositories[*].repositoryName" --output text | grep -E 'day[5-8]')
+REPOS=$(aws ecr describe-repositories --query "repositories[*].repositoryName" --output text || true)
+REPOS=$(echo "$REPOS" | grep -E 'day[5-8]' || true)
 if [ -z "$REPOS" ]; then
     echo "✅ No Day5–Day8 ECR repos found"
 else
@@ -46,7 +47,8 @@ fi
 
 echo ""
 echo "==== VERIFYING LOAD BALANCERS (ALB) ===="
-LBS=$(aws elbv2 describe-load-balancers --query "LoadBalancers[*].LoadBalancerName" --output text | grep -E 'day[5-8]')
+LBS=$(aws elbv2 describe-load-balancers --query "LoadBalancers[*].LoadBalancerName" --output text || true)
+LBS=$(echo "$LBS" | grep -E 'day[5-8]' || true)
 if [ -z "$LBS" ]; then
     echo "✅ No Day5–Day8 ALBs found"
 else
@@ -56,7 +58,8 @@ fi
 
 echo ""
 echo "==== VERIFYING TARGET GROUPS ===="
-TGS=$(aws elbv2 describe-target-groups --query "TargetGroups[*].TargetGroupName" --output text | grep -E 'day[5-8]')
+TGS=$(aws elbv2 describe-target-groups --query "TargetGroups[*].TargetGroupName" --output text || true)
+TGS=$(echo "$TGS" | grep -E 'day[5-8]' || true)
 if [ -z "$TGS" ]; then
     echo "✅ No Day5–Day8 target groups found"
 else
@@ -66,7 +69,8 @@ fi
 
 echo ""
 echo "==== VERIFYING IAM ROLES ===="
-ROLES=$(aws iam list-roles --query "Roles[*].RoleName" --output text | grep -E 'day[5-8]')
+ROLES=$(aws iam list-roles --query "Roles[*].RoleName" --output text || true)
+ROLES=$(echo "$ROLES" | grep -E 'day[5-8]' || true)
 if [ -z "$ROLES" ]; then
     echo "✅ No Day5–Day8 IAM roles found"
 else
@@ -76,7 +80,8 @@ fi
 
 echo ""
 echo "==== VERIFYING CLOUDWATCH LOG GROUPS ===="
-LOGS=$(aws logs describe-log-groups --query "logGroups[*].logGroupName" --output text | grep -E 'day[5-8]')
+LOGS=$(aws logs describe-log-groups --query "logGroups[*].logGroupName" --output text || true)
+LOGS=$(echo "$LOGS" | grep -E 'day[5-8]' || true)
 if [ -z "$LOGS" ]; then
     echo "✅ No Day5–Day8 CloudWatch log groups found"
 else
