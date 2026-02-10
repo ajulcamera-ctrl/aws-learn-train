@@ -13,6 +13,11 @@ data "aws_subnets" "default" {
   }
 }
 
+resource "aws_cloudwatch_log_group" "ecs" {
+  name              = "/ecs/day8"
+  retention_in_days = 7
+}
+
 resource "aws_security_group" "alb" {
   name   = "day8-alb"
   vpc_id = data.aws_vpc.default.id
