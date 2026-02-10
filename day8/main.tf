@@ -113,7 +113,7 @@ resource "aws_ecs_task_definition" "app" {
 
   container_definitions = jsonencode([{
     name  = "app"
-    image = "<PUT_YOUR_ECR_IMAGE_HERE>"
+    image = "223597091881.dkr.ecr.eu-north-1.amazonaws.com/day7-notes:latest"
     portMappings = [{
       containerPort = 5000
     }]
