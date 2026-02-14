@@ -183,10 +183,30 @@ resource "aws_lb_listener" "http" {
   protocol          = "HTTP"
 
   default_action {
-    type = "forward"
-    target_group_arn = aws_lb_target_group.tg.arn
+    type = "redirect"
+
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
   }
 }
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.app.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  certificate_arn   = aws_acm_certificate.notes_cert.arn
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+  }
+
+  depends_on = [aws_acm_certificate_validation.notes_cert_validation]
+}
+
 
 ################ ECS ################
 
@@ -235,3 +255,17 @@ resource "aws_ecs_service" "service" {
     container_port   = 5000
   }
 }
+
+resource "aws_acm_certificate" "notes_cert" {
+  domain_name       = "notes.${var.domain_name}"
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_acm_certificate_validation" "notes_cert_validation" {
+  certificate_arn = aws_acm_certificate.notes_cert.arn
+}
+
