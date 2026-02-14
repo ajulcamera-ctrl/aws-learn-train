@@ -18,23 +18,26 @@ cat > backend.tf <<EOF
 terraform {
   backend "s3" {
     bucket = "$S3_BUCKET"
-    key    = "day11/terraform.tfstate"
+    key    = "terraform.tfstate"
     region = "$REGION"
   }
 }
 EOF
 
-echo "Building Docker..."
-cd ../app
-bash build.sh
-IMAGE_URL=$(bash push.sh)
-cd ../terraform
-
+echo "Initializing Terraform..."
 terraform init
-terraform apply \
-  -var="domain_name=$DOMAIN_NAME" \
-  -var="image_url=$IMAGE_URL" \
-  -auto-approve
 
-echo "Deployment complete."
-terraform output alb_dns
+echo "Running first apply (will output ACM DNS validation)..."
+terraform apply -var "domain_name=$DOMAIN_NAME" -auto-approve
+
+echo
+echo "!!! Copy the certificate validation CNAME record below into Namecheap DNS !!!"
+terraform output certificate_dns_validation_record
+echo
+read -p "Press ENTER after adding CNAME in Namecheap and it has propagated..."
+
+echo "Running second apply to attach certificate and enable HTTPS..."
+terraform apply -var "domain_name=$DOMAIN_NAME" -auto-approve
+
+echo
+echo "HTTPS should now be enabled at: https://notes.$DOMAIN_NAME"
