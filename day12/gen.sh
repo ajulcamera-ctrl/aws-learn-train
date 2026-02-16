@@ -18,17 +18,7 @@ terraform {
 }
 
 provider "aws" {
-  region = var.aws_region
-}
-EOF
-
-cat <<'EOF' > terraform/variables.tf
-variable "aws_region" {
-  default = "eu-north-1"
-}
-
-variable "db_password" {
-  sensitive = true
+  region = "eu-north-1"
 }
 EOF
 
@@ -44,14 +34,14 @@ resource "aws_internet_gateway" "igw" {
 resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.1.0/24"
-  availability_zone       = "eu-west-2a"
+  availability_zone       = "eu-north-1a"
   map_public_ip_on_launch = true
 }
 
 resource "aws_subnet" "private" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = "10.0.2.0/24"
-  availability_zone = "eu-west-2a"
+  availability_zone = "eu-north-1a"
 }
 
 resource "aws_route_table" "public" {
@@ -72,9 +62,9 @@ resource "aws_security_group" "ec2_sg" {
   vpc_id = aws_vpc.main.id
 
   ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
@@ -117,11 +107,38 @@ resource "aws_db_instance" "postgres" {
   allocated_storage       = 20
   db_name                 = "appdb"
   username                = "postgres"
-  password                = var.db_password
+  password                = "StrongPassword123!"
   skip_final_snapshot     = true
   publicly_accessible     = false
   vpc_security_group_ids  = [aws_security_group.rds_sg.id]
   db_subnet_group_name    = aws_db_subnet_group.db_subnets.name
+}
+
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
+}
+
+resource "aws_instance" "ec2" {
+  ami           = data.aws_ami.amazon_linux.id
+  instance_type = "t3.micro"
+  subnet_id     = aws_subnet.public.id
+  vpc_security_group_ids = [aws_security_group.ec2_sg.id]
+
+  user_data = <<-EOF
+              #!/bin/bash
+              yum update -y
+              yum install postgresql -y
+              sleep 60
+              PGPASSWORD=StrongPassword123! psql -h ${aws_db_instance.postgres.address} -U postgres -d appdb -c "SELECT version();" > /home/ec2-user/db_test.txt
+              EOF
+
+  depends_on = [aws_db_instance.postgres]
 }
 
 output "db_endpoint" {
@@ -133,24 +150,15 @@ cat <<'EOF' > deploy.sh
 #!/bin/bash
 cd terraform
 terraform init
-terraform apply -auto-approve -var="db_password=StrongPassword123!"
-EOF
-
-cat <<'EOF' > test.sh
-#!/bin/bash
-cd terraform
-echo "Publicly Accessible flag:"
-aws rds describe-db-instances --region eu-west-2 --query "DBInstances[*].PubliclyAccessible"
-echo "Endpoint:"
-terraform output db_endpoint
+terraform apply -auto-approve
 EOF
 
 cat <<'EOF' > destroy.sh
 #!/bin/bash
 cd terraform
-terraform destroy -auto-approve -var="db_password=StrongPassword123!"
+terraform destroy -auto-approve
 EOF
 
-chmod +x deploy.sh test.sh destroy.sh
+chmod +x deploy.sh destroy.sh
 
 echo "Day 12 files generated."
