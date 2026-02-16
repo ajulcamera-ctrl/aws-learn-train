@@ -24,7 +24,7 @@ EOF
 
 cat <<'EOF' > terraform/variables.tf
 variable "aws_region" {
-  default = "eu-west-2"
+  default = "eu-north-1"
 }
 
 variable "db_password" {
