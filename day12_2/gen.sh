@@ -211,7 +211,7 @@ resource "aws_ecs_task_definition" "test" {
     {
       name  = "tester"
       image = "alpine"
-      command = ["sh", "-c", "apk add curl && curl -s https://example.com && sleep 60"]
+      command = ["sh", "-c", "apk add curl && curl -s http://example.com && sleep 60"]
       essential = true
       logConfiguration = {
         logDriver = "awslogs"
