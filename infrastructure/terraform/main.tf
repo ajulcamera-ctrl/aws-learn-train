@@ -2,12 +2,20 @@ provider "aws" {
   region = var.aws_region
 }
 
+locals {
+  common_tags = {
+    Project     = var.app_name
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+  }
+}
+
 # VPC
 resource "aws_vpc" "main" {
   cidr_block = "10.0.0.0/16"
-  tags = {
+  tags = merge(local.common_tags, {
     Name = "${var.app_name}-${var.environment}"
-  }
+  })
 }
 
 resource "aws_subnet" "public" {
@@ -159,6 +167,8 @@ resource "aws_dynamodb_table" "workouts" {
     name = "id"
     type = "S"
   }
+
+  tags = local.common_tags
 }
 
 resource "aws_dynamodb_table" "hikes" {
@@ -170,6 +180,8 @@ resource "aws_dynamodb_table" "hikes" {
     name = "id"
     type = "S"
   }
+
+  tags = local.common_tags
 }
 
 # ECS
@@ -225,13 +237,26 @@ resource "aws_iam_role_policy" "ecs_task" {
     Statement = [
       {
         Action = [
-          "dynamodb:*"
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+          "dynamodb:Scan",
+          "dynamodb:UpdateItem",
+          "dynamodb:DeleteItem"
         ]
         Effect   = "Allow"
         Resource = [
           aws_dynamodb_table.workouts.arn,
           aws_dynamodb_table.hikes.arn
         ]
+      },
+      {
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Effect   = "Allow"
+        Resource = "${aws_cloudwatch_log_group.app.arn}:*"
       }
     ]
   })
@@ -392,6 +417,99 @@ resource "aws_wafv2_web_acl_association" "main" {
 # Secrets Manager (placeholder)
 resource "aws_secretsmanager_secret" "db_credentials" {
   name = "${var.app_name}-db-creds"
+}
+
+# ACM Certificate
+resource "aws_acm_certificate" "cert" {
+  domain_name       = "example.com"  # Replace with your domain
+  validation_method = "DNS"
+
+  tags = {
+    Name = "${var.app_name}-cert"
+  }
+}
+
+# Route53 Hosted Zone (assuming you own the domain)
+resource "aws_route53_zone" "main" {
+  name = "example.com"
+}
+
+# Route53 Record for ALB
+resource "aws_route53_record" "alb" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "api.example.com"
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.main.dns_name
+    zone_id                = aws_lb.main.zone_id
+    evaluate_target_health = true
+  }
+}
+
+# CloudFront Distribution
+resource "aws_cloudfront_distribution" "main" {
+  origin {
+    domain_name = aws_lb.main.dns_name
+    origin_id   = "ALBOrigin"
+
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "http-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
+
+  enabled             = true
+  is_ipv6_enabled     = true
+  default_root_object = ""
+
+  default_cache_behavior {
+    allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "ALBOrigin"
+
+    forwarded_values {
+      query_string = true
+      cookies {
+        forward = "all"
+      }
+    }
+
+    viewer_protocol_policy = "redirect-to-https"
+    min_ttl                = 0
+    default_ttl            = 3600
+    max_ttl                = 86400
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  viewer_certificate {
+    acm_certificate_arn = aws_acm_certificate.cert.arn
+    ssl_support_method  = "sni-only"
+  }
+
+  tags = {
+    Name = "${var.app_name}-cloudfront"
+  }
+}
+
+# Route53 Record for CloudFront
+resource "aws_route53_record" "cloudfront" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "app.example.com"
+  type    = "A"
+
+  alias {
+    name                   = aws_cloudfront_distribution.main.domain_name
+    zone_id                = aws_cloudfront_distribution.main.hosted_zone_id
+    evaluate_target_health = false
+  }
 }
 
 # S3 for remote state (already in backend, but create bucket)
