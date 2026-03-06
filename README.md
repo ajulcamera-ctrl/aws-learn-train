@@ -7,6 +7,23 @@ No topic changes unless explicitly approved.
 
 ---
 
+## App Overview
+- **Backend**: FastAPI (Python) with full CRUD for workouts/hikes, DynamoDB storage.
+- **Frontend**: React app for managing data.
+- **Infra**: Complete AWS setup with all Phase 3-4 features (CloudWatch, autoscaling, CI/CD, etc.).
+
+## Workflow
+1. Build app (Docker + ECR push).
+2. `cd infrastructure`
+3. `./deploy.sh` (terraform apply full infra).
+4. `./test.sh` (curl APIs).
+5. `./verify.sh` (check all infra).
+6. `./destroy.sh` (terraform destroy).
+
+Days 14-30: Deploy full system, focus on learning one feature per day (e.g., Day 14: CloudWatch monitoring).
+
+---
+
 ## Phase 1 – Foundations
 
 Day 1  – AWS basics  
