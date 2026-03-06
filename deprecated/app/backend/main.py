@@ -1,9 +1,19 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from api import workouts, hikes
 from config import STORAGE_TYPE
 from storage import memory, dynamodb, postgres, redis_cache
 
 app = FastAPI()
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # For dev, allow all
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Storage selection
 if STORAGE_TYPE == "memory":
@@ -20,6 +30,10 @@ elif STORAGE_TYPE == "redis":
     hike_store = redis_cache.HikeRedisCache()
 else:
     raise Exception("Unknown STORAGE_TYPE")
+
+# Make stores available to routers
+workouts.workout_store = workout_store
+hikes.hike_store = hike_store
 
 # Include routers
 app.include_router(workouts.router, prefix="/workouts", tags=["workouts"])
