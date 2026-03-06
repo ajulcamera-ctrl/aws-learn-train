@@ -1,1 +1,0 @@
-STORAGE_TYPE = "dynamodb"
